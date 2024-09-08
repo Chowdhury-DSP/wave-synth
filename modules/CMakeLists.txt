@@ -1,5 +1,6 @@
 add_subdirectory(JUCE)
 add_subdirectory(chowdsp_utils)
+add_subdirectory(chowdsp_wdf)
 
 subproject_version(JUCE juce_version)
 message(STATUS "VERSION for JUCE: ${juce_version}")
@@ -12,9 +13,13 @@ target_link_libraries(juce_plugin_modules
     PRIVATE
         juce::juce_audio_utils
         juce::juce_dsp
+        chowdsp::chowdsp_buffers
+        chowdsp::chowdsp_dsp_utils
+        chowdsp::chowdsp_sources
         chowdsp::chowdsp_plugin_base
         chowdsp::chowdsp_plugin_state
         chowdsp::chowdsp_gui
+        chowdsp_wdf
     PUBLIC
         juce::juce_recommended_config_flags
         juce::juce_recommended_lto_flags

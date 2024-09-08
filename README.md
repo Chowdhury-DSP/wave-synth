@@ -1,10 +1,8 @@
 # Wave_Synth
 
-![CI](https://github.com/Chowdhury-DSP/Wave_Synth/workflows/CI/badge.svg)
-[![License](https://img.shields.io/badge/License-BSD-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
-
-This repository contains template code for building a Chowdhury DSP
-audio plugin.
+This repository contains `Wave Synth` a simple 4-voice synthesizer
+using Wave Digital circuit models. This synthesizer was made for
+a demo at the 2024 C++ Conference (CppCon).
 
 ## Building
 

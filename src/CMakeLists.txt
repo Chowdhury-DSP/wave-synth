@@ -2,6 +2,7 @@ include(SourceFileGroup)
 
 setup_source_group(Wave_Synth PLUGIN_SRCS SOURCES
     Wave_Synth.cpp
+    Plugin_Editor.cpp
 )
 
 file(GLOB_RECURSE juce_module_sources CONFIGURE_DEPENDS
