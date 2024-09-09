@@ -10,5 +10,6 @@ struct Plugin_Editor : juce::AudioProcessorEditor
     void resized() override;
 
     chowdsp::ParametersViewEditor params;
-    juce::Image schematic;
+    juce::Image synth_schematic;
+    juce::Image phaser_schematic;
 };

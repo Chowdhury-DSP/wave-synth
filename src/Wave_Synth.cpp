@@ -8,7 +8,7 @@ void Wave_Synth::prepareToPlay (double sample_rate, int samples_per_block)
     const auto spec = juce::dsp::ProcessSpec {
         sample_rate * os_ratio,
         static_cast<uint32_t> (samples_per_block * os_ratio),
-        1,
+        2,
     };
     downsampler.prepare (spec, os_ratio);
 
@@ -17,15 +17,18 @@ void Wave_Synth::prepareToPlay (double sample_rate, int samples_per_block)
     diode_rectifier.prepare (spec.sampleRate);
     sallen_key_filter.prepare (spec.sampleRate);
     envelope.prepare (spec.sampleRate);
+    phaser.prepare (spec.sampleRate);
     dc_blocker.prepare (spec.sampleRate);
 
-    const auto arena_bytes_required = spec.maximumBlockSize * num_voices * 2 * sizeof (float);
+    const auto arena_bytes_required = spec.maximumBlockSize * num_voices * 2 * sizeof (float)
+                                      + spec.maximumBlockSize * 2 * sizeof (float);
     arena.reset (arena_bytes_required + 128);
 }
 
 void Wave_Synth::processSynth (juce::AudioBuffer<float>& output_buffer, juce::MidiBuffer& midi)
 {
     // set up buffer
+    jassert (output_buffer.getNumChannels() == 2); // requires stereo output!
     const auto os_num_samples = output_buffer.getNumSamples() * os_ratio;
     auto voices_buffer = chowdsp::arena::make_span<float> (arena, os_num_samples * num_voices, 16);
     auto voices_simd_buffer = std::span { reinterpret_cast<xsimd::batch<float>*> (voices_buffer.data()), static_cast<size_t> (os_num_samples) };
@@ -38,19 +41,19 @@ void Wave_Synth::processSynth (juce::AudioBuffer<float>& output_buffer, juce::Mi
     for (size_t n = 0; n < static_cast<size_t> (os_num_samples); ++n)
         voices_buffer[n] = xsimd::reduce_add (voices_simd_buffer[n]);
 
-    auto mono_buffer = chowdsp::BufferView { voices_buffer.data(), os_num_samples };
-    chowdsp::BufferMath::applyFunctionSIMD (mono_buffer,
+    // post-processing
+    const auto mono_buffer = voices_buffer.subspan (0, static_cast<size_t> (os_num_samples));
+    dc_blocker.process (mono_buffer);
+    auto stereo_buffer = chowdsp::make_temp_buffer<float> (arena, 2, os_num_samples);
+    phaser.process (mono_buffer,
+                    stereo_buffer.getWriteSpan (0),
+                    stereo_buffer.getWriteSpan (1));
+    chowdsp::BufferMath::applyFunctionSIMD (stereo_buffer,
                                             [] (auto x)
                                             { return chowdsp::Math::algebraicSigmoid (0.5f * x); });
-    dc_blocker.process (mono_buffer.getWriteSpan (0));
 
-    // downsample into the first channel of the output buffer
-    const auto ds_buffer = chowdsp::BufferView { output_buffer, 0, -1, 0, 1 };
-    downsampler.process (chowdsp::BufferView { voices_buffer.data(), os_num_samples }, ds_buffer);
-
-    // copy to all the other channels of the output buffer
-    for (int ch = 1; ch < output_buffer.getNumChannels(); ++ch)
-        chowdsp::BufferMath::copyBufferChannels (ds_buffer, output_buffer, 0, ch);
+    // downsample into the output buffer
+    downsampler.process (stereo_buffer, output_buffer);
 
     // cleanup
     chowdsp::BufferMath::sanitizeBuffer (output_buffer, 5.0f);
@@ -127,6 +130,19 @@ void Wave_Synth::process_voices (std::span<xsimd::batch<float>> voice_buffer) no
     envelope.process (envelope_buffer);
     for (auto [x, env] : chowdsp::zip (voice_buffer, envelope_buffer))
         x *= env;
+}
+
+bool Wave_Synth::isBusesLayoutSupported (const juce::AudioProcessor::BusesLayout& layouts) const
+{
+    // only supports stereo (for now)
+    if (layouts.getMainOutputChannelSet() != juce::AudioChannelSet::stereo())
+        return false;
+
+    // input and output layout must be the same
+    if (layouts.getMainOutputChannelSet() != layouts.getMainInputChannelSet())
+        return false;
+
+    return true;
 }
 
 juce::AudioProcessorEditor* Wave_Synth::createEditor()

@@ -6,6 +6,7 @@
 #include "dsp/Diode_Rectifier.h"
 #include "dsp/LC_Oscillator.h"
 #include "dsp/Sallen_Key_Filter.h"
+#include "dsp/Phaser.h"
 
 enum class Waveshaper_Type
 {
@@ -48,6 +49,7 @@ struct Params : chowdsp::ParamHolder
     Diode_Rectifier::Params diode_rectifier_params;
     Filter_Params filter_params;
     AR_Envelope::Params env_params;
+    Phaser::Params phaser_params;
 
     Params()
     {
@@ -56,7 +58,8 @@ struct Params : chowdsp::ParamHolder
              // diode_rectifier_params,
              // diode_clipper_params,
              filter_params,
-             env_params);
+             env_params,
+             phaser_params);
     }
 };
 
@@ -70,6 +73,7 @@ public:
     void prepareToPlay (double sample_rate, int samples_per_block) override;
     void releaseResources() override {}
     void processSynth (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi) override;
+    bool isBusesLayoutSupported (const juce::AudioProcessor::BusesLayout& layouts) const override;
 
     juce::AudioProcessorEditor* createEditor() override;
 
@@ -98,6 +102,7 @@ public:
     Diode_Rectifier diode_rectifier { state.params.diode_rectifier_params };
     Sallen_Key_Filter sallen_key_filter;
     AR_Envelope envelope { state.params.env_params };
+    Phaser phaser { state.params.phaser_params };
     DC_Blocker dc_blocker;
 
 private:
