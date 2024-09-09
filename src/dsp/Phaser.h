@@ -10,7 +10,7 @@ struct MXR_Phaser_Stage
     wdft::CapacitorT<Vec> C2 { 47.0e-9f };
 
     // Port C
-    wdft::ResistorT<Vec> R5 { 24.0e3f }; // modulate!
+    wdft::ResistorT<Vec> R5 { 24.0e3f }; // modulate me!
 
     // Port D
     wdft::ResistorT<Vec> R3 { 10.0e3f };

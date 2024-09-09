@@ -51,7 +51,6 @@ struct AR_Envelope
     void process (std::span<Vec> buffer)
     {
         const auto attack_time = 0.001f * params.attack->getCurrentValue();
-        // const auto release_time = std::max (0.001f * params.release->getCurrentValue(), attack_time * 2.0f);
         const auto release_time = 0.001f * params.release->getCurrentValue();
 
         const auto r_release = release_time / cap_val;

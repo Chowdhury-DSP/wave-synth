@@ -53,6 +53,7 @@ struct Params : chowdsp::ParamHolder
 
     Params()
     {
+        // some parameters are hidden for ease-of-use...
         add (
             // waveshaper,
              // diode_rectifier_params,

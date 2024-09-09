@@ -1,8 +1,8 @@
 # Wave_Synth
 
 This repository contains `Wave Synth` a simple 4-voice synthesizer
-using Wave Digital circuit models. This synthesizer was made for
-a demo at the 2024 C++ Conference (CppCon).
+created using Wave Digital circuit models. This synthesizer was made
+for a demo at the 2024 C++ Conference (CppCon).
 
 ## Building
 
