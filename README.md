@@ -1,4 +1,4 @@
-# Wave_Synth
+# Wave Synth
 
 This repository contains `Wave Synth` a simple 4-voice synthesizer
 created using Wave Digital circuit models. This synthesizer was made
