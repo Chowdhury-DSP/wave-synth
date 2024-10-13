@@ -8,6 +8,8 @@
 #include "dsp/Sallen_Key_Filter.h"
 #include "dsp/Phaser.h"
 
+#include <clap/ext/draft/scratch-memory.h>
+
 enum class Waveshaper_Type
 {
     Diode_Clipper = 1,
@@ -79,12 +81,15 @@ public:
     juce::AudioProcessorEditor* createEditor() override;
 
     void process_midi (const juce::MidiBuffer& midi) noexcept;
-    void process_voices (std::span<xsimd::batch<float>> voice_buffer) noexcept;
+    void process_voices (chowdsp::ArenaAllocatorView arena, std::span<xsimd::batch<float>> voice_buffer) noexcept;
 
     static constexpr int os_ratio = 4;
     static constexpr int num_voices = 4;
 
-    chowdsp::ArenaAllocator<> arena;
+    size_t arena_bytes_required = 0;
+    clap_host_scratch_memory* host_scratch_memory {};
+    std::vector<std::byte> internal_arena_memory {};
+    // chowdsp::ArenaAllocator<> arena;
 
     using AA_Filter = chowdsp::EllipticFilter<8>;
     chowdsp::Downsampler<float, AA_Filter, false> downsampler;

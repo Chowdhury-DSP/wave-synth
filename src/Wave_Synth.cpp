@@ -1,7 +1,11 @@
 #include "Wave_Synth.h"
 #include "Plugin_Editor.h"
 
-Wave_Synth::Wave_Synth() = default;
+Wave_Synth::Wave_Synth()
+{
+    host_scratch_memory = (clap_host_scratch_memory*) getExtension (CLAP_EXT_SCRATCH_MEMORY);
+    jassert (host_scratch_memory != nullptr);
+}
 
 void Wave_Synth::prepareToPlay (double sample_rate, int samples_per_block)
 {
@@ -20,13 +24,34 @@ void Wave_Synth::prepareToPlay (double sample_rate, int samples_per_block)
     phaser.prepare (spec.sampleRate);
     dc_blocker.prepare (spec.sampleRate);
 
-    const auto arena_bytes_required = spec.maximumBlockSize * num_voices * 2 * sizeof (float)
-                                      + spec.maximumBlockSize * 2 * sizeof (float);
-    arena.reset (arena_bytes_required + 128);
+    arena_bytes_required = spec.maximumBlockSize * num_voices * 2 * sizeof (float)
+                           + spec.maximumBlockSize * 2 * sizeof (float)
+                           + 128;
+    if (host_scratch_memory != nullptr && host_scratch_memory->request_size (getHost(), arena_bytes_required))
+    {
+        // successfully requested arena memory in host scratch memory!
+    }
+    else
+    {
+        internal_arena_memory.resize (arena_bytes_required);
+    }
 }
 
 void Wave_Synth::processSynth (juce::AudioBuffer<float>& output_buffer, juce::MidiBuffer& midi)
 {
+    chowdsp::ArenaAllocatorView arena {};
+    if (internal_arena_memory.empty())
+    {
+        jassert (host_scratch_memory != nullptr);
+        auto* arena_memory = host_scratch_memory->access (getHost());
+        jassert (arena_memory != nullptr);
+        arena.get_memory_resource() = { (std::byte*) arena_memory, arena_bytes_required };
+    }
+    else
+    {
+        arena.get_memory_resource() = internal_arena_memory;
+    }
+
     // set up buffer
     jassert (output_buffer.getNumChannels() == 2); // requires stereo output!
     const auto os_num_samples = output_buffer.getNumSamples() * os_ratio;
@@ -35,7 +60,7 @@ void Wave_Synth::processSynth (juce::AudioBuffer<float>& output_buffer, juce::Mi
 
     // synth processing
     process_midi (midi);
-    process_voices (voices_simd_buffer);
+    process_voices (arena, voices_simd_buffer);
 
     // sum all the voices down to a mono buffer
     for (size_t n = 0; n < static_cast<size_t> (os_num_samples); ++n)
@@ -93,7 +118,7 @@ void Wave_Synth::process_midi (const juce::MidiBuffer& midi) noexcept
     }
 }
 
-void Wave_Synth::process_voices (std::span<xsimd::batch<float>> voice_buffer) noexcept
+void Wave_Synth::process_voices (chowdsp::ArenaAllocatorView arena, std::span<xsimd::batch<float>> voice_buffer) noexcept
 {
     auto envelope_buffer = chowdsp::arena::make_span<xsimd::batch<float>> (arena, voice_buffer.size());
     auto envelope_masks = std::span { reinterpret_cast<std::array<float, 4>*> (envelope_buffer.data()), envelope_buffer.size() };
